@@ -233,6 +233,17 @@ class AuthNotifier extends StateNotifier<AuthState> {
         host = host.substring(0, host.length - 1);
       }
 
+      // 免 token 站点不发登录请求：POST /api/auth/me 会被 Cloudflare 拦，
+      // 接口本身也不校验 token，本地登记一个 guest 账号就够用。
+      if (ServerUtils.isNoTokenHost(host)) {
+        return await _loginWithoutToken(
+          host: host,
+          username: username,
+          password: password,
+          serverCookie: serverCookie,
+        );
+      }
+
       // Initialize API service with empty token first
       _apiService.init('', host);
 
@@ -362,6 +373,102 @@ class AuthNotifier extends StateNotifier<AuthState> {
           error: 'Login failed: ${e.toString()}',
         );
       }
+      return false;
+    }
+  }
+
+  /// 免 token 站点的登录：不请求服务端，只把账号登记到本地。
+  ///
+  /// 这些站点的 /api/auth/me 对无 token 请求直接返回 guest 用户，
+  /// 所以 token 留空即可，浏览、播放、下载都能走。
+  Future<bool> _loginWithoutToken({
+    required String host,
+    required String username,
+    required String password,
+    String? serverCookie,
+  }) async {
+    try {
+      final normalizedHost = host.startsWith('http://') ||
+              host.startsWith('https://')
+          ? host
+          : 'https://$host';
+
+      _apiService.init('', normalizedHost);
+
+      final user = User(
+        name: username,
+        password: password,
+        host: normalizedHost,
+        token: '',
+        loggedIn: true,
+        group: 'guest',
+        lastUpdateTime: DateTime.now(),
+        serverCookie: serverCookie,
+      );
+
+      await StorageService.setString('auth_token', '');
+      await StorageService.setString('server_host', normalizedHost);
+      await StorageService.setMap('current_user', user.toJson());
+
+      try {
+        final existingAccounts =
+            await AccountDatabase.instance.getAllAccounts();
+        final existingAccount = existingAccounts.firstWhere(
+          (acc) => acc.username == username && acc.host == normalizedHost,
+          orElse: () => Account(
+            username: username,
+            password: password,
+            host: normalizedHost,
+            serverCookie: serverCookie,
+            isActive: true,
+            createdAt: DateTime.now(),
+          ),
+        );
+
+        if (existingAccount.id != null) {
+          await AccountDatabase.instance.updateAccount(
+            existingAccount.copyWith(
+              password: password,
+              isActive: true,
+              serverCookie: serverCookie,
+              lastUsedAt: DateTime.now(),
+            ),
+          );
+        } else {
+          await AccountDatabase.instance.createAccount(
+            Account(
+              username: username,
+              password: password,
+              host: normalizedHost,
+              serverCookie: serverCookie,
+              isActive: true,
+              createdAt: DateTime.now(),
+              lastUsedAt: DateTime.now(),
+            ),
+          );
+        }
+      } catch (e) {
+        _log.captureOutput('[Auth] Failed to save account to database: $e');
+      }
+
+      state = state.copyWith(
+        currentUser: user,
+        token: '',
+        host: normalizedHost,
+        isLoading: false,
+        isLoggedIn: true,
+        error: null,
+      );
+
+      _log.captureOutput(
+          '[Auth] Logged in without token, host: $normalizedHost');
+      return true;
+    } catch (e) {
+      _log.captureOutput('[Auth] Login without token failed: $e');
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Login failed: ${e.toString()}',
+      );
       return false;
     }
   }
