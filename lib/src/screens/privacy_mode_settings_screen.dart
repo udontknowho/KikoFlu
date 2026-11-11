@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../providers/settings_provider.dart';
+import '../providers/app_lock_settings_provider.dart';
+import '../services/app_lock_service.dart';
 import '../utils/snackbar_util.dart';
 import '../widgets/settings_section.dart';
 import '../widgets/common_input_dialog.dart';
@@ -18,6 +20,21 @@ class PrivacyModeSettingsScreen extends ConsumerStatefulWidget {
 
 class _PrivacyModeSettingsScreenState
     extends ConsumerState<PrivacyModeSettingsScreen> {
+  /// 设备有没有指纹 / 锁屏密码。没有就不显示这个开关。
+  bool _appLockAvailable = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkAppLockAvailable();
+  }
+
+  Future<void> _checkAppLockAvailable() async {
+    final available = await AppLockService.isAvailable();
+    if (!mounted) return;
+    setState(() => _appLockAvailable = available);
+  }
+
   Future<void> _showEditTitleDialog() async {
     final settings = ref.read(privacyModeSettingsProvider);
 
@@ -53,6 +70,7 @@ class _PrivacyModeSettingsScreenState
   @override
   Widget build(BuildContext context) {
     final settings = ref.watch(privacyModeSettingsProvider);
+    final appLockEnabled = ref.watch(appLockSettingsProvider).enabled;
 
     return SettingsSubpageScaffold(
       title: S.of(context).privacyModeSettingsTitle,
@@ -126,6 +144,26 @@ class _PrivacyModeSettingsScreenState
             ),
           ),
           const SizedBox(height: 16),
+
+          // 回到前台验证。设备没有指纹也没有锁屏密码时置灰。
+          if (_appLockAvailable)
+            SettingsSectionCard(
+              child: SettingsSwitchTile(
+                icon: appLockEnabled ? Icons.lock : Icons.lock_open,
+                iconColor: appLockEnabled
+                    ? Colors.green
+                    : Theme.of(context).colorScheme.primary,
+                title: '回到前台需要验证',
+                subtitle: '用指纹或锁屏密码解锁，挡住别人拿起手机就看',
+                value: appLockEnabled,
+                onChanged: (value) {
+                  ref
+                      .read(appLockSettingsProvider.notifier)
+                      .setEnabled(value);
+                },
+              ),
+            ),
+          if (_appLockAvailable) const SizedBox(height: 16),
 
           // 详细设置
           SettingsSectionCard(

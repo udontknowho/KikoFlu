@@ -1,3 +1,10 @@
+/// 服务器类型。Dart 不允许把 enum 嵌在类里，所以放在顶层。
+///
+/// - normal：正常账号，POST /api/auth/me 换 token。
+/// - guestToken：只用 guest/guest 换 token。
+/// - noToken：接口不校验 token，POST 会被 Cloudflare 拦，本地建 guest 即可。
+enum HostKind { normal, guestToken, noToken }
+
 class ServerUtils {
   static const String officialHostKeyword = 'api.asmr';
   static const String defaultRemoteHost = 'https://api.asmr-200.com';
@@ -23,18 +30,12 @@ class ServerUtils {
     ...builtinSiteHosts,
   ];
 
-  /// 服务器类型。
-  ///
-  /// - normal：正常账号，POST /api/auth/me 换 token。
-  /// - guestToken：只用 guest/guest 换 token。
-  /// - noToken：接口不校验 token，POST 会被 Cloudflare 拦，本地建 guest 即可。
+  /// 服务器类型判定。
   static const List<String> guestTokenHosts = ['asmr.homes'];
   static const List<String> noTokenHosts = [
     'asmr.unikon.art',
     'asmr.emoe.top',
   ];
-
-  enum HostKind { normal, guestToken, noToken }
 
   static HostKind hostKind(String? host) {
     if (host == null || host.isEmpty) {

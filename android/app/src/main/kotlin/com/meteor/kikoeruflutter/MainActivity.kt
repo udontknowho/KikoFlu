@@ -16,6 +16,7 @@ class MainActivity : AudioServiceActivity() {
     private var subtitleDirectoryPicker: SubtitleDirectoryPicker? = null
     private val screenAwakeChannelName = "com.meteor.kikoeruflutter/screen_awake"
     private val systemProxyChannelName = "com.meteor.kikoeruflutter/system_proxy"
+    private var appLockBridge: AppLockBridge? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -66,6 +67,9 @@ class MainActivity : AudioServiceActivity() {
                 else -> result.notImplemented()
             }
         }
+
+        // 回到前台验证：指纹 / 锁屏密码
+        appLockBridge = AppLockBridge(this, flutterEngine.dartExecutor.binaryMessenger)
     }
 
     private fun getSystemProxy(): String? {
@@ -111,6 +115,8 @@ class MainActivity : AudioServiceActivity() {
         audioHapticsBridge = null
         subtitleDirectoryPicker?.dispose()
         subtitleDirectoryPicker = null
+        appLockBridge?.dispose()
+        appLockBridge = null
         super.onDestroy()
     }
 }

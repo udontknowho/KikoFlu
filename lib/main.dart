@@ -43,6 +43,7 @@ import 'src/utils/desktop_window_options.dart';
 import 'src/utils/global_keys.dart';
 import 'src/utils/system_ui_style.dart';
 import 'src/widgets/screen_awake_observer.dart';
+import 'src/widgets/app_lock_gate.dart';
 
 void _setEnv(String key, String value) {
   if (Platform.isWindows) {
@@ -546,6 +547,9 @@ class _KikoeruAppState extends ConsumerState<KikoeruApp>
             effectiveLocale,
           ),
           themeMode: mode,
+          // 锁挂在 builder 上：所有路由、对话框都被这一层盖住
+          builder: (context, child) =>
+              AppLockGate(child: child ?? const SizedBox.shrink()),
           home: ScreenAwakeObserver(child: _buildHomeScreen()),
         );
       },
