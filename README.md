@@ -119,6 +119,37 @@ flutter pub get
 
 ---
 
+## 本 fork 的改动
+
+基于上游 `pa-jesusf/KikoFlu` 的个人分支，许可证同为 GPL-3.0。
+
+### 内置第三方站点
+
+服务器地址下拉里加了两个 Kikoeru 站点：`asmr.unikon.art`、`asmr.emoe.top`。
+这两站的接口不校验 token，POST `/api/auth/me` 反而会被 Cloudflare 拦，
+所以登录时不发请求，只在本地登记一个 guest 账号，token 留空。
+
+`ServerUtils.hostKind()` 把服务器分三类：`normal`（正常换 token）、
+`guestToken`（asmr.homes 那类用 guest/guest 换）、`noToken`（上面两站）。
+
+### 回到前台验证
+
+防社死设置页新增开关。退到后台重新上锁，回到前台弹系统验证，
+通过后才露出内容。指纹、面容、锁屏密码都能解。
+
+- 原生侧 `AppLockBridge.kt` 用 framework 的 `BiometricPrompt`，
+  不引 `androidx.biometric`，所以宿主 Activity 不用换成 `FragmentActivity`。
+- 遮罩挂在 `MaterialApp.builder`，所有路由和对话框一起被盖住，
+  不是只遮住某一个页面。
+- 设备上既没有指纹也没有锁屏密码时，整项开关不显示。
+- 只做了 Android。iOS 要另走 `LocalAuthentication`，尚未实现。
+
+### 签名
+
+CI 出的是 debug 签名，与上游 release 包不兼容，互换必须先卸载。
+
+---
+
 ## 相关项目
 
 - [Kikoeru](https://github.com/Number178/kikoeru-express) — 自建后端服务器
